@@ -5,11 +5,11 @@ using UnityEngine;
 public class WorldHandler : MonoBehaviour {
 	// UI handler script
 	private UIHandler uiHandler;
-	
+
 	// World/environment parameters
 	private readonly float maxX = 10f;
 	private readonly float maxZ = 10f;
-	private readonly int foodPerDay = 50;
+	private readonly int foodPerDay = 100;
 	private readonly int initialCreatures = 20;
 	private float[] worldLimits;
 	private int deciDayCounter = 0;
@@ -20,18 +20,19 @@ public class WorldHandler : MonoBehaviour {
 
 	// A list of all food in the world
 	private GameObject[] food;
-	
+
 	// Lists containing graphable information
-	private List<float> popData = new();
+	private readonly List<float> popData = new();
+	private readonly List<float> speedData = new();
 
 	// Prefabs
 	private GameObject planePrefab, creaturePrefab, foodPrefab;
 
 	void Start() {
 		Time.timeScale = 4f;
-		
+
 		uiHandler = GetComponent<UIHandler>();
-		
+
 		// Load the prefabs
 		planePrefab = Resources.Load<GameObject>("Prefabs/Plane");
 		creaturePrefab = Resources.Load<GameObject>("Prefabs/Creature");
@@ -51,8 +52,9 @@ public class WorldHandler : MonoBehaviour {
 
 		SpawnFood();
 		SpawnCreatures();
-		
+
 		popData.Add(initialCreatures);
+		speedData.Add(0f);
 
 		creaturesForDeletion = new();
 
@@ -63,7 +65,7 @@ public class WorldHandler : MonoBehaviour {
 	void Update() {
 		int previous = deciDayCounter;
 
-		if (dayTimer >= 30f) {
+		if (dayTimer >= 60f) {
 			++deciDayCounter;
 			dayTimer = 0f;
 		} else {
@@ -76,7 +78,7 @@ public class WorldHandler : MonoBehaviour {
 		if (deciDayCounter % 10 == 0 && deciDayCounter > 0 && deciDayCounter != previous) {
 			uiHandler.UpdateUI();
 			popData.Add(creatures.Count);
-			
+
 			creatures = GameObject.FindGameObjectsWithTag("Creature").Where(c => c.GetComponent<Creature>().Survived()).ToList();
 			creaturesForDeletion = GameObject.FindGameObjectsWithTag("Creature").Where(c => !c.GetComponent<Creature>().Survived()).ToList();
 			food = GameObject.FindGameObjectsWithTag("Food");
@@ -92,13 +94,15 @@ public class WorldHandler : MonoBehaviour {
 			}
 			SpawnFood();
 
+			float meanSpeed = 0f;
 			Creature creatureScript;
 			foreach (GameObject creature in creatures) {
 				creatureScript = creature.GetComponent<Creature>();
 				creatureScript.ResetCreature();
 				creatureScript.SetSurvivedState(false);
+				meanSpeed += creatureScript.GetTraits()[0];
 
-				float distanceAway = Random.Range(-4, 5);
+				int distanceAway = Random.Range(-4, 5);
 				Vector3 spawnLocation = new(creature.transform.position.x + distanceAway, creature.transform.position.y, creature.transform.position.z + distanceAway);
 
 				if (spawnLocation.x < 0) {
@@ -114,13 +118,16 @@ public class WorldHandler : MonoBehaviour {
 				}
 
 				GameObject offspring = Instantiate(creaturePrefab, spawnLocation, Quaternion.Euler(0f, 0f, 0f));
-				float[] newTraits = { 
+				float[] newTraits = {
 						creatureScript.GetTraits()[0] + Random.Range(-1f, 1f),
 						creatureScript.GetTraits()[1] + Random.Range(-1f, 1f),
 						creatureScript.GetTraits()[2] + Random.Range(-1f, 1f)
 				};
 				offspring.GetComponent<Creature>().SetTraits(newTraits);
 			}
+
+			meanSpeed /= creatures.Count;
+			speedData.Add(meanSpeed);
 		}
 	}
 
@@ -158,31 +165,35 @@ public class WorldHandler : MonoBehaviour {
 		creatures = GameObject.FindGameObjectsWithTag("Creature").ToList();
 		return creatures.Count;
 	}
-	
+
 	public float[] GetPopulationData() {
 		return popData.ToArray();
 	}
-	
+
+	public float[] GetSpeedData() {
+		return speedData.ToArray();
+	}
+
 	public float[] GetMeanCreatureTraits() {
 		float meanSpeed = 0f;
 		float meanSenseRange = 0f;
 		float meanSize = 0f;
-		
+
 		creatures = GameObject.FindGameObjectsWithTag("Creature").ToList();
-		
+
 		float[] creatureTraits;
 		foreach (GameObject creature in creatures) {
 			creatureTraits = creature.GetComponent<Creature>().GetTraits();
-			
+
 			meanSpeed += creatureTraits[0];
 			meanSenseRange += creatureTraits[1];
 			meanSize += creatureTraits[2];
 		}
-		
+
 		meanSpeed /= creatures.Count;
 		meanSenseRange /= creatures.Count;
 		meanSize /= creatures.Count;
-		
+
 		return new float[] { meanSpeed, meanSenseRange, meanSize };
 	}
 }

@@ -15,6 +15,9 @@ public class Creature : MonoBehaviour {
 	// The traits of the creature
 	private float speed, detectionRadius, size;
 
+	// Whether or not to show the detection radius
+	public bool showDetectionRadius = false;
+
 	void Awake() {
 		speed = Random.Range(1f, 10f);
 		detectionRadius = Random.Range(1f, 10f);
@@ -34,6 +37,7 @@ public class Creature : MonoBehaviour {
 
 		Transform detectionRing = transform.Find("Detection");
 		detectionRing.localScale = new(detectionRadius * 100f, detectionRadius * 100f, 100f);
+		detectionRing.GetComponent<Renderer>().enabled = showDetectionRadius;
 	}
 
 	void Update() {
