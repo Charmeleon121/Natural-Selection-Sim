@@ -3,6 +3,9 @@ using System.Linq;
 using UnityEngine;
 
 public class WorldHandler : MonoBehaviour {
+	// UI handler script
+	private UIHandler uiHandler;
+	
 	// World/environment parameters
 	private readonly float maxX = 10f;
 	private readonly float maxZ = 10f;
@@ -17,11 +20,18 @@ public class WorldHandler : MonoBehaviour {
 
 	// A list of all food in the world
 	private GameObject[] food;
+	
+	// Lists containing graphable information
+	private List<float> popData = new();
 
 	// Prefabs
 	private GameObject planePrefab, creaturePrefab, foodPrefab;
 
 	void Start() {
+		Time.timeScale = 4f;
+		
+		uiHandler = GetComponent<UIHandler>();
+		
 		// Load the prefabs
 		planePrefab = Resources.Load<GameObject>("Prefabs/Plane");
 		creaturePrefab = Resources.Load<GameObject>("Prefabs/Creature");
@@ -41,6 +51,8 @@ public class WorldHandler : MonoBehaviour {
 
 		SpawnFood();
 		SpawnCreatures();
+		
+		popData.Add(initialCreatures);
 
 		creaturesForDeletion = new();
 
@@ -51,7 +63,7 @@ public class WorldHandler : MonoBehaviour {
 	void Update() {
 		int previous = deciDayCounter;
 
-		if (dayTimer >= 300f) {
+		if (dayTimer >= 30f) {
 			++deciDayCounter;
 			dayTimer = 0f;
 		} else {
@@ -62,6 +74,9 @@ public class WorldHandler : MonoBehaviour {
 		 * Check if a new day has dawned
 		 */
 		if (deciDayCounter % 10 == 0 && deciDayCounter > 0 && deciDayCounter != previous) {
+			uiHandler.UpdateUI();
+			popData.Add(creatures.Count);
+			
 			creatures = GameObject.FindGameObjectsWithTag("Creature").Where(c => c.GetComponent<Creature>().Survived()).ToList();
 			creaturesForDeletion = GameObject.FindGameObjectsWithTag("Creature").Where(c => !c.GetComponent<Creature>().Survived()).ToList();
 			food = GameObject.FindGameObjectsWithTag("Food");
@@ -98,7 +113,13 @@ public class WorldHandler : MonoBehaviour {
 					spawnLocation.z = Mathf.Min(spawnLocation.z, worldLimits[3]);
 				}
 
-				Instantiate(creaturePrefab, spawnLocation, Quaternion.Euler(0f, 0f, 0f));
+				GameObject offspring = Instantiate(creaturePrefab, spawnLocation, Quaternion.Euler(0f, 0f, 0f));
+				float[] newTraits = { 
+						creatureScript.GetTraits()[0] + Random.Range(-1f, 1f),
+						creatureScript.GetTraits()[1] + Random.Range(-1f, 1f),
+						creatureScript.GetTraits()[2] + Random.Range(-1f, 1f)
+				};
+				offspring.GetComponent<Creature>().SetTraits(newTraits);
 			}
 		}
 	}
@@ -107,8 +128,8 @@ public class WorldHandler : MonoBehaviour {
 	private void SpawnFood() {
 		float xPos, zPos;
 		for (int i = 0; i < foodPerDay; ++i) {
-			xPos = Random.Range(-maxX * 10f / 2f, maxX * 10f / 2f);
-			zPos = Random.Range(-maxZ * 10f / 2f, maxZ * 10f / 2f);
+			xPos = Random.Range(worldLimits[0], worldLimits[1]);
+			zPos = Random.Range(worldLimits[2], worldLimits[3]);
 
 			Instantiate(foodPrefab, new(xPos, 0.25f, zPos), Quaternion.Euler(0f, 0f, 0f));
 		}
@@ -118,28 +139,8 @@ public class WorldHandler : MonoBehaviour {
 	private void SpawnCreatures() {
 		float xPos, zPos;
 		for (int i = 0; i < initialCreatures; ++i) {
-			float randomChance;
-			float randomBoundaryChoice = Random.Range(0f, 9f);
-
-			if (randomBoundaryChoice <= 4f) {
-				randomChance = Random.Range(0f, 9f);
-				if (randomChance <= 4f) {
-					xPos = worldLimits[0];
-				} else {
-					xPos = worldLimits[1];
-				}
-
-				zPos = Mathf.RoundToInt(Random.Range(worldLimits[2], worldLimits[3]));
-			} else {
-				randomChance = Random.Range(0f, 9f);
-				if (randomChance <= 4f) {
-					zPos = worldLimits[2];
-				} else {
-					zPos = worldLimits[3];
-				}
-
-				xPos = Mathf.RoundToInt(Random.Range(worldLimits[0], worldLimits[1]));
-			}
+			xPos = Random.Range(worldLimits[0], worldLimits[1]);
+			zPos = Random.Range(worldLimits[2], worldLimits[3]);
 
 			Instantiate(creaturePrefab, new(xPos, 1f, zPos), Quaternion.Euler(0f, 0f, 0f));
 		}
@@ -156,5 +157,32 @@ public class WorldHandler : MonoBehaviour {
 	public int GetCreatureCount() {
 		creatures = GameObject.FindGameObjectsWithTag("Creature").ToList();
 		return creatures.Count;
+	}
+	
+	public float[] GetPopulationData() {
+		return popData.ToArray();
+	}
+	
+	public float[] GetMeanCreatureTraits() {
+		float meanSpeed = 0f;
+		float meanSenseRange = 0f;
+		float meanSize = 0f;
+		
+		creatures = GameObject.FindGameObjectsWithTag("Creature").ToList();
+		
+		float[] creatureTraits;
+		foreach (GameObject creature in creatures) {
+			creatureTraits = creature.GetComponent<Creature>().GetTraits();
+			
+			meanSpeed += creatureTraits[0];
+			meanSenseRange += creatureTraits[1];
+			meanSize += creatureTraits[2];
+		}
+		
+		meanSpeed /= creatures.Count;
+		meanSenseRange /= creatures.Count;
+		meanSize /= creatures.Count;
+		
+		return new float[] { meanSpeed, meanSenseRange, meanSize };
 	}
 }

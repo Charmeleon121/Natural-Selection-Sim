@@ -13,12 +13,12 @@ public class Creature : MonoBehaviour {
 	private float energy;
 
 	// The traits of the creature
-	private float speed;
-	private float detectionRadius;
+	private float speed, detectionRadius, size;
 
 	void Awake() {
 		speed = Random.Range(1f, 10f);
 		detectionRadius = Random.Range(1f, 10f);
+		size = Random.Range(0.5f, 2f);
 
 		survived = false;
 		energy = 100f;
@@ -29,6 +29,8 @@ public class Creature : MonoBehaviour {
 		worldLimits = worldHandler.GetWorldLimits();
 
 		initialLocation = transform.position;
+		
+		transform.localScale = new(size, transform.localScale.y, size);
 
 		Transform detectionRing = transform.Find("Detection");
 		detectionRing.localScale = new(detectionRadius * 100f, detectionRadius * 100f, 100f);
@@ -71,7 +73,7 @@ public class Creature : MonoBehaviour {
 			Vector3 oldPosition = transform.position;
 			transform.position = newPosition;
 
-			energy = Mathf.Max(0f, energy - Vector3.Distance(oldPosition, newPosition));
+			energy = Mathf.Max(0f, energy - Vector3.Distance(oldPosition, newPosition) * Mathf.Pow(size, 3f));
 		}
 	}
 
@@ -104,5 +106,17 @@ public class Creature : MonoBehaviour {
 	// Set the survived state (only for new days)
 	public void SetSurvivedState(bool state) {
 		survived = state;
+	}
+	
+	// Get the traits of the creature
+	public float[] GetTraits() {
+		return new float[] { speed, detectionRadius, size };
+	}
+	
+	// Set the traits of the creature - used for reproduction
+	public void SetTraits(float[] newTraits) {
+		speed = Mathf.Max(0.1f, newTraits[0]);
+		detectionRadius = Mathf.Max(0.1f, newTraits[1]);
+		size = Mathf.Max(0.1f, newTraits[2]);
 	}
 }
